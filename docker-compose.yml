@@ -1,0 +1,49 @@
+version: '3.9'
+
+services:
+  apache2-web:
+    container_name: apache2-web
+    image: ubuntu/apache2:2.4-22.04_beta
+    hostname: apache2-web
+    mem_limit: 1G
+    mem_reservation: 1G
+    cpus: 0.5
+    environment:
+      - TZ=America/New_York
+    ports:
+      - 8080:80/tcp
+    volumes:
+      - apache2log-volume:/var/log/apache2
+      - ./apache2-etc/apache2.conf:/etc/apache2/apache2.conf:ro
+    restart: unless-stopped
+  logstash:
+    container_name: logstash
+    build:
+       context: logstash-config/
+    hostname: logstash_container
+    mem_limit: 4G
+    mem_reservation: 4G
+    cpus: 2.0
+    volumes:
+      - ./logstash-config/jvm.options:/usr/share/logstash/config/jvm.options:ro
+      - ./logstash-config/startup.options:/usr/share/logstash/config/startup.options:ro
+      - ./logstash-config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./logstash-config/apache2-to-dcr-sentinel.conf:/usr/share/logstash/pipeline/apache2-to-dcr-sentinel.conf:ro
+      - apache2log-volume:/var/log/apache2:ro
+      - logstash-volume:/usr/share/logstash
+    ports:
+      - 5044:5044
+      - 5514:5514/udp
+      - 5514:5514/tcp
+      - 9600:9600
+    environment:
+      LS_JAVA_OPTS: -Xms3g -Xmx3g
+    restart: unless-stopped
+    depends_on:
+      - apache2-web
+
+volumes:
+  apache2log-volume:
+    driver: local
+  logstash-volume:
+    driver: local
